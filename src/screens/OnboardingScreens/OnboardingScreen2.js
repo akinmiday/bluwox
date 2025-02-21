@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,14 +15,6 @@ const { width } = Dimensions.get('window');
 
 export default function OnboardingScreen2({ navigation }) {
   const [showSupportModal, setShowSupportModal] = useState(false);
-
-  // Auto-navigate after 4 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.navigate('Onboarding3');
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, [navigation]);
 
   return (
     <ImageBackground

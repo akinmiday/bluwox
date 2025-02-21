@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,41 +7,70 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAuth } from '../../context/authContext';
+import { fetchTasks } from '../../utilities/utils';
 
 const screenWidth = Dimensions.get('window').width;
 
+// Helper function to format ISO date strings
+function formatDate(isoDate) {
+  const dateObj = new Date(isoDate);
+  return dateObj.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function HomeScreen({ navigation }) {
-  // Track which horizontal card is visible
+  const { auth } = useAuth();
   const [activeIndex, setActiveIndex] = useState(0);
-
-  // Example data for the cards
-  const statsData = [
-    { title: 'Pending Tasks', value: 25, icon: 'layers-outline' },
-    { title: 'Total Tasks Requested', value: 25, icon: 'albums-outline' },
-    { title: 'Total Money Spent', value: 25786.4, icon: 'cash-outline' },
-  ];
-
-  // Example tasks
-  const recentTasks = [
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Pending' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'In progress' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Awaiting approval' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Completed' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Awaiting approval' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Completed' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Awaiting approval' },
-    { name: 'Job name', date: '02 Mar 2024', price: '30,000', status: 'Completed' },
-  ];
-
-  // State to determine whether we show all tasks or just a few
+  const [tasks, setTasks] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
   const [showAllTasks, setShowAllTasks] = useState(false);
 
-  // Decide how many tasks to display
-  const tasksToShow = showAllTasks ? recentTasks : recentTasks.slice(0, 5);
+  // Fetch tasks when auth.token is available
+  useEffect(() => {
+    if (auth.token) {
+      setLoadingTasks(true);
+      fetchTasks(auth.token)
+        .then((data) => setTasks(data))
+        .catch((err) => console.error('Error fetching tasks:', err))
+        .finally(() => setLoadingTasks(false));
+    }
+  }, [auth.token]);
 
-  // Update activeIndex on horizontal scroll
+  // Calculate stats dynamically from tasks array
+  const statsData = useMemo(() => {
+    const pendingTasks = tasks.filter(
+      (task) => task.status && task.status.toLowerCase() === 'pending'
+    ).length;
+    const totalTasks = tasks.length;
+    const totalMoneySpent = tasks.reduce((acc, task) => {
+      let price = 0;
+      if (typeof task.price === 'string') {
+        // Remove commas and parse float
+        price = parseFloat(task.price.replace(/,/g, '')) || 0;
+      } else if (typeof task.price === 'number') {
+        price = task.price;
+      }
+      return acc + price;
+    }, 0);
+
+    return [
+      { title: 'Pending Tasks', value: pendingTasks, icon: 'layers-outline' },
+      { title: 'Total Tasks Requested', value: totalTasks, icon: 'albums-outline' },
+      { title: 'Total Money Spent', value: totalMoneySpent, icon: 'cash-outline' },
+    ];
+  }, [tasks]);
+
+  // Determine how many tasks to display
+  const tasksToShow = showAllTasks ? tasks : tasks.slice(0, 5);
+
+  // Update activeIndex on horizontal scroll for stats cards
   const handleScroll = (event) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const currentIndex = Math.round(offsetX / screenWidth);
@@ -50,25 +79,26 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header Row: Avatar + Welcome text + Notification icon */}
+      {/* Header: Avatar + Welcome text from auth context + Notification icon */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Image
-            source={require('../../../assets/avatar.png')} // Replace with your avatar image
+            source={require('../../../assets/avatar.png')}
             style={styles.avatar}
           />
           <View style={styles.nameContainer}>
             <Text style={styles.welcomeText}>Welcome back</Text>
-            <Text style={styles.userName}>Jake Adeleke</Text>
+            <Text style={styles.userName}>
+              {auth.firstname || 'Guest'} {auth.lastname || ''}
+            </Text>
           </View>
         </View>
-
-        <TouchableOpacity onPress={() => {navigation.navigate("notifications")}}>
+        <TouchableOpacity onPress={() => navigation.navigate('notifications')}>
           <Ionicons name="notifications-outline" size={30} color="#0B48E0" />
         </TouchableOpacity>
       </View>
 
-      {/* Horizontal scroll for 3 stats cards */}
+      {/* Horizontal scroll for stats cards */}
       <ScrollView
         horizontal
         pagingEnabled
@@ -81,7 +111,11 @@ export default function HomeScreen({ navigation }) {
           <View key={index} style={[styles.cardContainer, { width: screenWidth }]}>
             <View style={styles.cardBackground}>
               <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardValue}>{item.value.toLocaleString()}</Text>
+              <Text style={styles.cardValue}>
+                {item.title === 'Total Money Spent'
+                  ? item.value.toLocaleString()
+                  : item.value}
+              </Text>
               <Ionicons
                 name={item.icon}
                 size={50}
@@ -109,36 +143,40 @@ export default function HomeScreen({ navigation }) {
       {/* Recent Tasks Section */}
       <View style={styles.recentTasksContainer}>
         <Text style={styles.recentTasksTitle}>Recent Tasks</Text>
-
-        {/* Show partial or all tasks based on showAllTasks */}
-        {tasksToShow.map((task, idx) => (
-          <View key={idx} style={styles.taskRow}>
-            <View>
-              <Text style={styles.taskName}>{task.name}</Text>
-              <Text style={styles.taskDate}>
-                <Ionicons name="calendar-outline" size={14} /> {task.date}{'  '}
-                <Ionicons name="cash-outline" size={14} /> {task.price}
-              </Text>
+        {loadingTasks ? (
+          <ActivityIndicator size="large" color="#0B48E0" />
+        ) : tasks.length === 0 ? (
+          <Text>No tasks available</Text>
+        ) : (
+          tasksToShow.map((task, idx) => (
+            <View key={idx} style={styles.taskRow}>
+              <View>
+                <Text style={styles.taskName}>{task.name}</Text>
+                <Text style={styles.taskDate}>
+                  <Ionicons name="calendar-outline" size={14} /> {formatDate(task.date)}{'  '}
+                  <Ionicons name="cash-outline" size={14} /> {task.price}
+                </Text>
+              </View>
+              <View style={styles.statusContainer}>
+                <Text style={[styles.statusText, getStatusStyle(task.status)]}>
+                  {task.status}
+                </Text>
+              </View>
             </View>
-            <View style={styles.statusContainer}>
-              <Text style={[styles.statusText, getStatusStyle(task.status)]}>
-                {task.status}
-              </Text>
-            </View>
-          </View>
-        ))}
+          ))
+        )}
 
-        {/* Show "See all tasks" only if not already showing them */}
-        {!showAllTasks && (
+        {/* "See More Tasks" Toggle */}
+        {!showAllTasks && tasks.length > 5 && (
           <TouchableOpacity
             onPress={() => setShowAllTasks(true)}
             style={styles.seeAllButton}
           >
-            <Text style={styles.linkBlue}>See all tasks</Text>
+            <Text style={styles.linkBlue}>See more tasks</Text>
           </TouchableOpacity>
         )}
 
-        {/* AD Card with normal color and centered text */}
+        {/* AD Card */}
         <View style={styles.adCard}>
           <Text style={styles.adText}>This is an AD</Text>
         </View>
@@ -167,7 +205,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
-    paddingVertical:40
+    paddingVertical: 40,
   },
   headerRow: {
     flexDirection: 'row',
@@ -186,7 +224,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 20,
     resizeMode: 'cover',
-    marginTop:20
+    marginTop: 20,
   },
   nameContainer: {
     marginLeft: 10,
@@ -273,7 +311,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
-    
   },
   statusContainer: {
     paddingVertical: 4,
@@ -291,11 +328,11 @@ const styles = StyleSheet.create({
   },
   linkBlue: {
     color: '#0B48E0',
-    fontWeight:"500",
-    marginTop:10
+    fontWeight: '500',
+    marginTop: 10,
   },
   adCard: {
-    backgroundColor: '#0B48E0', // normal color
+    backgroundColor: '#0B48E0',
     height: 100,
     borderRadius: 8,
     marginVertical: 25,
@@ -308,3 +345,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+ 

@@ -8,19 +8,28 @@ import {
   Image,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useAuth } from '../../context/authContext';
+import { useNavigation } from '@react-navigation/native';
 
-export default function ProfileScreen({ navigation }) {
+
+export default function ProfileScreen({  }) {
   const [darkMode, setDarkMode] = useState(false);
+   const { auth, logout } = useAuth();
+   const navigation = useNavigation()
 
   const handleToggleDarkMode = () => {
     setDarkMode(!darkMode);
     // TODO: Implement real dark mode logic if needed
   };
 
-  const handleLogout = () => {
-    // TODO: Add logout logic
+  const handleLogout = async() => { 
+    await logout()
     console.log('Logged out');
-    navigation.navigate("SignIn")
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "SignIn" }],
+    });
+    
   };
 
   return (
@@ -33,7 +42,7 @@ export default function ProfileScreen({ navigation }) {
         />
         <View style={styles.nameContainer}>
           <Text style={styles.welcomeText}>Welcome back</Text>
-          <Text style={styles.userName}>Jake Adeleke</Text>
+          <Text style={styles.userName}> {auth.firstname || 'Guest'} {auth.lastname || ''}</Text>
         </View>
       </View>
 
