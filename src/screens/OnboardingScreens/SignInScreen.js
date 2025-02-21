@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,40 +12,72 @@ import {
   Keyboard,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { loginUser } from '../../utilities/utils';
 import { useAuth } from '../../context/authContext';
 import { useNavigation } from '@react-navigation/native';
 
-export default function SignInScreen({}) {
-  const { login } = useAuth(); // from our auth context
+export default function SignInScreen() {
+  const { login } = useAuth();
   const navigation = useNavigation();
 
-  // Toggle between recognized user (Jake) and normal sign-in
+  // If recognizedUser is true, we only ask for password
   const [recognizedUser, setRecognizedUser] = useState(false);
+  // Store the recognized user's first name for the greeting
+  const [recognizedName, setRecognizedName] = useState('');
 
   // Fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   // Toggle to show or hide password
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Loading state for login process
   const [loading, setLoading] = useState(false);
+
+  // Load last user info from AsyncStorage on mount
+  useEffect(() => {
+    const loadLastUser = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('lastUser');
+        if (stored) {
+          const { recognizedUser, email, firstname } = JSON.parse(stored);
+          if (recognizedUser) {
+            setRecognizedUser(true);
+            setEmail(email);
+            setRecognizedName(firstname);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading last user info:', err);
+      }
+    };
+    loadLastUser();
+  }, []);
 
   const handleSignIn = async () => {
     setLoading(true);
     try {
       const lowerCaseEmail = email.toLowerCase();
-      // Call the login utility which should return { token, firstname, lastname }
-      const data = await loginUser({ email, password });
-      // Save auth data to context (and AsyncStorage via context)
+      // Call the login utility (returns { token, firstname, lastname } on success)
+      const data = await loginUser({ email: lowerCaseEmail, password });
+      // Save auth data in context
       login(data.token, data.firstname, data.lastname);
+
+      // Store recognized user info in AsyncStorage
+      const lastUserInfo = {
+        recognizedUser: true,
+        email: lowerCaseEmail,
+        firstname: data.firstname,
+      };
+      await AsyncStorage.setItem('lastUser', JSON.stringify(lastUserInfo));
+
       // Navigate to the Dashboard
       navigation.reset({
         index: 0,
-        routes: [{ name: "Dashboard" }],
+        routes: [{ name: 'Dashboard' }],
       });
     } catch (error) {
       Alert.alert('Login Failed', 'Please check your credentials.');
@@ -54,14 +86,18 @@ export default function SignInScreen({}) {
     }
   };
 
-  const toggleSignInMode = () => {
-    setRecognizedUser(!recognizedUser);
-    setEmail('');
-    setPassword('');
-  };
-
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
+  };
+
+  // If user wants to sign in as a different account, reset recognized state
+  const handleDifferentAccount = async () => {
+    setRecognizedUser(false);
+    setEmail('');
+    setPassword('');
+    setRecognizedName('');
+    // Optionally remove lastUser from AsyncStorage or keep it
+    await AsyncStorage.removeItem('lastUser');
   };
 
   return (
@@ -78,19 +114,20 @@ export default function SignInScreen({}) {
             </TouchableOpacity>
             <View style={{ marginLeft: 20, gap: 10 }}>
               {recognizedUser ? (
-                <Text style={styles.title}>Hi Jake, welcome back</Text>
+                <>
+                  <Text style={styles.title}>Hi {recognizedName}, welcome back</Text>
+                  <Text style={styles.subtitle}>It's so good to see you again!</Text>
+                </>
               ) : (
-                <Text style={styles.title}>Sign in</Text>
-              )}
-              {recognizedUser ? (
-                <Text style={styles.subtitle}>It's so good to see you again!</Text>
-              ) : (
-                <Text style={styles.subtitle}>It’s so good to see you again!</Text>
+                <>
+                  <Text style={styles.title}>Sign in</Text>
+                  <Text style={styles.subtitle}>It’s so good to see you again!</Text>
+                </>
               )}
             </View>
           </View>
 
-          {/* Show email input only if unrecognized user */}
+          {/* If recognizedUser is false, show the email input */}
           {!recognizedUser && (
             <TextInput
               style={styles.input}
@@ -151,13 +188,13 @@ export default function SignInScreen({}) {
             <Ionicons name="finger-print" size={60} color="#0B48E0" />
           </View>
 
-          {/* Bottom Links: Toggle recognizedUser vs. normal sign-in */}
+          {/* Bottom Links */}
           {recognizedUser ? (
             <View style={styles.linkRow}>
               <Text style={styles.linkGray}>
                 Sign in to a different account?
               </Text>
-              <TouchableOpacity onPress={toggleSignInMode}>
+              <TouchableOpacity onPress={handleDifferentAccount}>
                 <Text style={styles.linkBlue}> Sign in</Text>
               </TouchableOpacity>
             </View>

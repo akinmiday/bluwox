@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient'; // Import the gradient
 import { useAuth } from '../../context/authContext';
 import { fetchTasks } from '../../utilities/utils';
 
@@ -63,7 +64,7 @@ export default function HomeScreen({ navigation }) {
     return [
       { title: 'Pending Tasks', value: pendingTasks, icon: 'layers-outline' },
       { title: 'Total Tasks Requested', value: totalTasks, icon: 'albums-outline' },
-      { title: 'Total Money Spent', value: totalMoneySpent, icon: 'cash-outline' },
+      { title: 'Total Earnings', value: totalMoneySpent, icon: 'cash-outline' },
     ];
   }, [tasks]);
 
@@ -109,10 +110,14 @@ export default function HomeScreen({ navigation }) {
       >
         {statsData.map((item, index) => (
           <View key={index} style={[styles.cardContainer, { width: screenWidth }]}>
-            <View style={styles.cardBackground}>
+            {/* Use a LinearGradient instead of a solid background */}
+            <LinearGradient
+              colors={['#0B48E0', '#5749f8']} // Example gradient colors
+              style={styles.cardBackground}
+            >
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardValue}>
-                {item.title === 'Total Money Spent'
+                {item.title === 'Total Earnings'
                   ? item.value.toLocaleString()
                   : item.value}
               </Text>
@@ -122,7 +127,7 @@ export default function HomeScreen({ navigation }) {
                 color="#fff"
                 style={styles.cardIcon}
               />
-            </View>
+            </LinearGradient>
           </View>
         ))}
       </ScrollView>
@@ -211,7 +216,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
     marginHorizontal: 20,
     marginBottom: 10,
   },
@@ -244,9 +248,9 @@ const styles = StyleSheet.create({
   cardContainer: {
     height: 100,
   },
+  // Removed backgroundColor here so we can use the gradient
   cardBackground: {
     flex: 1,
-    backgroundColor: '#0B48E0',
     borderRadius: 10,
     marginHorizontal: 10,
     marginBottom: 5,
@@ -345,4 +349,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
- 

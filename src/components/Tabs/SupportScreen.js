@@ -127,16 +127,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
-    paddingTop: 40,
+    paddingVertical: 40,
     paddingHorizontal: 20,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 30,
+    marginVertical: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     color: '#0B48E0',
     fontWeight: 'bold',
     marginLeft: 20, // space between back arrow and title
