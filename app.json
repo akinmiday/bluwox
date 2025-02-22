@@ -17,13 +17,18 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/bluwox_logo.png",
         "backgroundColor": "#0B48E0"
-      }
+      },
+      "package": "com.akinmiday.bluwox"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "https://bluwox-backend-server.onrender.com"
-    }
+      "apiBaseUrl": "https://bluwox-backend-server.onrender.com",
+      "eas": {
+        "projectId": "b8ee6fa7-7867-4103-a5f1-f0e18d0029a7"
+      }
+    },
+    "owner": "akinmiday"
   }
 }
